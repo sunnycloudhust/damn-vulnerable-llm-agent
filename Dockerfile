@@ -16,7 +16,7 @@ RUN pip3 install -r requirements.txt
 #fix here
 RUN useradd -m appuser && chown -R appuser /app
 USER appuser
-COPY --chown=appuser:appuser config.toml /home/appuser/.streamlit/config.toml
+COPY --chown=appuser:appuser --chmod=400 config.toml /home/appuser/.streamlit/config.toml
 ###
 
 EXPOSE 8501
