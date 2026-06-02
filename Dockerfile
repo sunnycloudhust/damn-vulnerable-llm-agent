@@ -5,9 +5,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
-    software-properties-common \
     git \
-    pip \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install python-dotenv
@@ -15,7 +13,11 @@ RUN pip install python-dotenv
 COPY * /app/
 RUN pip3 install -r requirements.txt
 
-COPY config.toml /root/.streamlit/config.toml
+#fix here
+RUN useradd -m appuser && chown -R appuser /app
+USER appuser
+COPY --chown=appuser:appuser config.toml /home/appuser/.streamlit/config.toml
+###
 
 EXPOSE 8501
 

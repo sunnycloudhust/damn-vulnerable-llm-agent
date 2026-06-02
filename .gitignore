@@ -4,3 +4,4 @@ rate_limit.db
 *.pyc
 transactions.db
 __pycache__
+.vscode

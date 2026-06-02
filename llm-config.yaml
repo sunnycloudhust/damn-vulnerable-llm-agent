@@ -1,4 +1,4 @@
-default_model: gpt-4-1106-preview
+default_model: ollama/mistral-nemo
 models:
   - model_name: openai-gpt4
     model: gpt-4-1106-preview
