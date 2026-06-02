@@ -38,6 +38,9 @@ jobs:
     name: SAST - Semgrep Code Scan
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -50,17 +53,22 @@ jobs:
             p/security-audit
             p/owasp-top-ten
           generateSarif: true
+          sarif_file: semgrep.sarif
 
       - name: Upload SARIF Report
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: semgrep.sarif
+          wait-for-processing: false
 
   sast_sonarqube:
     name: SAST - SonarQube Analysis & Quality Gate
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: read
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -76,16 +84,17 @@ jobs:
       - name: Install Dependencies
         run: pip install -r requirements.txt
 
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v5.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
-            -Dsonar.projectBaseDir=.
+            -Dsonar.projectKey=sunnycloudhust_llm-agent-devsecops
+            -Dsonar.organization=sunnycloudhust
             -Dsonar.sources=.
-            -Dsonar.exclusions=**/*.md,**/tests/**,**/__pycache__/**
+            -Dsonar.exclusions=**/*.md,**/tests/**,**/__pycache__/**,.github/**
             -Dsonar.python.version=3.11
             -Dsonar.qualitygate.wait=true
 
