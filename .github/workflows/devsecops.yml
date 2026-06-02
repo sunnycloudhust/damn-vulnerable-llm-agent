@@ -1,0 +1,137 @@
+name: DevSecOps Pipeline
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  # ----------------------------------------------------
+  # STEP 1: BUILD
+  # ----------------------------------------------------
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+  # ----------------------------------------------------
+  # STEP 2: SAST (Static Application Security Testing)
+  # ----------------------------------------------------
+  sast_semgrep:
+    name: SAST - Semgrep Scan
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: "p/nodejs"
+          generateSarif: "1"
+
+  sast_sonarqube:
+    name: SAST - SonarQube Scan & Quality Gate
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }} 
+        with:
+          # QUALITY GATE: Báo fail pipeline nếu không pass các điều kiện của SonarQube
+          args: >
+            -Dsonar.organization=sunnycloudhust
+            -Dsonar.projectKey=sunnycloudhust_nodejs-devsecops
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.coverage.exclusions=index.js
+
+  # ----------------------------------------------------
+  # STEP 3: SCA (Software Composition Analysis)
+  # ----------------------------------------------------
+  sca_snyk:
+    name: SCA - Snyk Dependency Scan
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }} 
+        with:
+          # QUALITY GATE: Báo fail pipeline ngay lập tức nếu phát hiện lỗi High hoặc Critical
+          args: --severity-threshold=high
+
+  # ----------------------------------------------------
+  # STEP 4: DAST (Dynamic Application Security Testing)
+  # ----------------------------------------------------
+  dast_owasp_zap:
+    name: DAST - OWASP ZAP Scan
+    # Đảm bảo app đã pass các bước tĩnh (SAST, SCA) trước khi kiểm thử động
+    needs: [sast_semgrep, sast_sonarqube, sca_snyk] 
+    runs-on: ubuntu-latest
+    
+    permissions:
+      issues: write
+      contents: read
+      
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Start Application in Background
+        run: |
+          npm ci
+          
+          # Khởi chạy app ngầm ở cổng 3000
+          npm start > app.log 2>&1 & 
+          
+          echo "Đang chờ ứng dụng khởi động tại cổng 3000..."
+          for i in {1..15}; do
+            if nc -z localhost 3000; then
+              echo "Ứng dụng đã khởi động thành công!"
+              break
+            fi
+            sleep 1
+          done
+
+          if ! nc -z localhost 3000; then
+            echo "=== LỖI KHỞI ĐỘNG ==="
+            cat app.log
+            exit 1
+          fi
+
+      - name: Run OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: 'http://localhost:3000'
+          # QUALITY GATE: Đánh rớt (fail) pipeline nếu ZAP phát hiện lỗ hổng mức độ High
+          fail_action: true
