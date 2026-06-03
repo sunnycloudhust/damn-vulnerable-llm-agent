@@ -10,11 +10,10 @@ RUN apt-get update && apt-get install -y \
 
 RUN pip install python-dotenv
 
-COPY * /app/
+COPY --chmod=400 * /app/
 RUN pip3 install -r requirements.txt
-
-#fix here
-RUN useradd -m appuser && chown -R appuser /app
+## fix here ##
+RUN useradd -m appuser && chown -R appuser /app && chmod -R 500 /app
 USER appuser
 COPY --chown=appuser:appuser --chmod=400 config.toml /home/appuser/.streamlit/config.toml
 ###
