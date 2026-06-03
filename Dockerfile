@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
 
 RUN pip install python-dotenv
 
-COPY --chmod=400 * /app/
+COPY --chmod=400 requirements.txt main.py tools.py utils.py transaction_db.py llm-config.yaml labs-logo.png /app/
 RUN pip3 install -r requirements.txt
 ## fix here ##
 RUN useradd -m appuser && chown -R appuser /app && chmod -R 500 /app
