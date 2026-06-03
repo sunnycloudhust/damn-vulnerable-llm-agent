@@ -105,19 +105,17 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Install and Freeze Dependencies
+      - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip freeze > snyk-requirements.txt
 
       - name: Run Snyk Security Scan
         uses: snyk/actions/python@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          # XÓA --all-projects, thêm --file=snyk-requirements.txt
-          args: --severity-threshold=high --file=snyk-requirements.txt --sarif-file-output=/dev/null
+          args: --severity-threshold=high --file=requirements.txt --sarif-file-output=/dev/null
 
   # ============================================================
   # STAGE 4: DAST - Dynamic Application Security Testing
