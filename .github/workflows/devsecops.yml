@@ -111,7 +111,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run Snyk Security Scan
-        uses: snyk/actions/python@4b74d7fe2fb0aaaa4b2e4c4f3d3b3b3b3b3b3b3b
+        uses: snyk/actions/python@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
@@ -125,7 +125,6 @@ jobs:
     name: DAST - OWASP ZAP Dynamic Scan
     needs: [sast_semgrep, sast_sonarqube, sca_snyk]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
     permissions:
       contents: read
