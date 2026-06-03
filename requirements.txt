@@ -1,6 +1,6 @@
 streamlit
 langchain~=0.3.25
-openai==2.24.0
-langchain-litellm>=0.2.1
-litellm==1.83.14
+openai~=1.78.0
+langchain-litellm==0.2.0
+litellm>=1.83.14
 langchain-community
