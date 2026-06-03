@@ -74,7 +74,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@5b2c2597dd336dcc07ced9751e7e78efb3be6b35
+        uses: SonarSource/sonarqube-scan-action@016cabf33a6b7edf0733e179a03ad408ad4e88ba
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
