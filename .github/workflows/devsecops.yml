@@ -38,9 +38,6 @@ jobs:
     name: SAST - Semgrep Code Scan
     needs: build
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -48,19 +45,11 @@ jobs:
       - name: Run Semgrep Scan
         uses: returntocorp/semgrep-action@v1
         with:
+          generateSarif: false
           config: |
             p/python
             p/security-audit
             p/owasp-top-ten
-          generateSarif: true
-          sarif_file: semgrep.sarif
-
-      - name: Upload SARIF Report
-        uses: github/codeql-action/upload-sarif@v4
-        if: always()
-        with:
-          sarif_file: semgrep.sarif
-          wait-for-processing: false
 
   sast_sonarqube:
     name: SAST - SonarQube Analysis & Quality Gate
@@ -97,6 +86,7 @@ jobs:
             -Dsonar.exclusions=**/*.md,**/tests/**,**/__pycache__/**,.github/**
             -Dsonar.python.version=3.11
             -Dsonar.qualitygate.wait=true
+            -Dsonar.sarif.enabled=false
 
   # ============================================================
   # STAGE 3: SCA - Software Composition Analysis (CVE Check)
@@ -123,7 +113,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --severity-threshold=high --all-projects
+          args: --severity-threshold=high --all-projects --sarif-file-output=/dev/null
 
   # ============================================================
   # STAGE 4: DAST - Dynamic Application Security Testing
@@ -182,6 +172,7 @@ jobs:
           rules_file_name: '.zap/rules.tsv'
           cmd_options: '-a'
           fail_action: true
+          sarif_report_file: '/dev/null'
 
   # ============================================================
   # QUALITY GATE: Aggregate Results & Block Merge if Critical
@@ -193,30 +184,11 @@ jobs:
     if: always()
     
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Check SAST Results
-        run: |
-          echo "::notice title=SAST::Semgrep and SonarQube scans completed"
-          if [ "${{ needs.sast_semgrep.result }}" == "failure" ] || [ "${{ needs.sast_sonarqube.result }}" == "failure" ]; then
-            echo "::error::SAST scan detected issues - check logs"
-          fi
-
-      - name: Check SCA Results
-        run: |
-          echo "::notice title=SCA::Dependency vulnerability scan completed"
-          if [ "${{ needs.sca_snyk.result }}" == "failure" ]; then
-            echo "::error::High/Critical CVE detected in dependencies"
-            exit 1
-          fi
-
-      - name: Final Status
+      - name: Check Pipeline Status
         run: |
           if [ "${{ needs.sast_semgrep.result }}" == "failure" ] || \
              [ "${{ needs.sast_sonarqube.result }}" == "failure" ] || \
              [ "${{ needs.sca_snyk.result }}" == "failure" ]; then
-            echo "::error::Pipeline failed - security issues detected"
             exit 1
           fi
-          echo "✓ All security checks passed"
+          
