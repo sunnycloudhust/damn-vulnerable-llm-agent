@@ -83,6 +83,7 @@ jobs:
             -Dsonar.projectKey=sunnycloudhust_llm-agent-devsecops
             -Dsonar.organization=sunnycloudhust
             -Dsonar.sources=.
+            -Dsonar.inclusions=**/*.py
             -Dsonar.exclusions=**/*.md,**/tests/**,**/__pycache__/**,.github/**
             -Dsonar.python.version=3.11
             -Dsonar.qualitygate.wait=true
