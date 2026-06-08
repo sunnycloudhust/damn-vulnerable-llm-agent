@@ -7,15 +7,28 @@ RUN apt-get update && apt-get install -y \
     curl \
     software-properties-common \
     git \
-    pip \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install python-dotenv
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
-COPY * /app/
-RUN pip3 install -r requirements.txt
+RUN useradd --create-home --shell /usr/sbin/nologin appuser \
+    && install -d -o appuser -g appuser /home/appuser/.streamlit
 
-COPY config.toml /root/.streamlit/config.toml
+COPY --chown=appuser:appuser \
+    main.py \
+    tools.py \
+    utils.py \
+    transaction_db.py \
+    llm-config.yaml \
+    labs-logo.png \
+    /app/
+COPY --chown=appuser:appuser config.toml /home/appuser/.streamlit/config.toml
+
+RUN chown appuser:appuser /app
+
+ENV HOME=/home/appuser
+USER appuser
 
 EXPOSE 8501
 
