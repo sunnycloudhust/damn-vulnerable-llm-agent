@@ -175,11 +175,12 @@ jobs:
           fi
 
       - name: Run OWASP ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.12.0
+        uses: zaproxy/action-baseline@de8ad967d3548d44ef623df22cf95c3b0baf8b25
         with:
           target: 'http://127.0.0.1:8501'
           cmd_options: '-a -I'
           allow_issue_writing: false
+          artifact_name: 'zap-scan-${{ github.run_id }}'
           fail_action: true
           sarif_report_file: '/dev/null'
 
