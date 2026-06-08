@@ -1,6 +1,8 @@
 # Damn Vulnerable LLM Agent - DevSecOps Fix Branch
 
 [![DevSecOps Pipeline](https://github.com/sunnycloudhust/damn-vulnerable-llm-agent/actions/workflows/devsecops.yml/badge.svg?branch=fix)](https://github.com/sunnycloudhust/damn-vulnerable-llm-agent/actions/workflows/devsecops.yml?query=branch%3Afix)
+[![Snyk Security](https://snyk.io/test/github/sunnycloudhust/damn-vulnerable-llm-agent/fix/badge.svg?targetFile=requirements.txt)](https://snyk.io/test/github/sunnycloudhust/damn-vulnerable-llm-agent/fix?targetFile=requirements.txt)
+![SonarQube Quality Gate](https://img.shields.io/badge/SonarQube-Quality%20Gate%20Passed-4E9BCD?logo=sonarqube&logoColor=white)
 
 This repository contains a deliberately vulnerable LLM agent lab and a fixed
 branch that demonstrates how to remediate dependency and CI/CD security issues.
