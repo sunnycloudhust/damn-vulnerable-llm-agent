@@ -59,7 +59,7 @@ class TransactionDb:
 
     def get_user_transactions(self, userId):
         cursor = self.conn.cursor()
-        cursor.execute(f"SELECT * FROM Transactions WHERE userId = '{str(userId)}'")
+        cursor.execute("SELECT * FROM Transactions WHERE userId = ?", (userId,))
         rows = cursor.fetchall()
 
         # Get column names
@@ -73,9 +73,7 @@ class TransactionDb:
 
     def get_user(self, user_id):
         cursor = self.conn.cursor()
-        cursor.execute(
-            f"SELECT userId,username FROM Users WHERE userId = {str(user_id)}"
-        )
+        cursor.execute("SELECT userId,username FROM Users WHERE userId = ?", (user_id,))
         rows = cursor.fetchall()
 
         # Get column names
