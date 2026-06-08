@@ -189,7 +189,7 @@ jobs:
   # QUALITY GATE: Aggregate Results & Block Merge if Critical
   # ============================================================
   quality_gate:
-    name: Quality Gate - Security Check
+    name: Quality Gate - Summary
     needs: [sast_semgrep, sast_sonarqube, sca_snyk]
     runs-on: ubuntu-latest
     if: always()
