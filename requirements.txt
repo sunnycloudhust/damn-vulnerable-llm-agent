@@ -1,5 +1,8 @@
 streamlit
 langchain~=0.3.25
-openai~=1.78.0
+openai==2.30.0
 langchain-litellm==0.2.0
+litellm==1.83.7
+aiohttp==3.13.5
 langchain-community
+python-dotenv==1.0.1
