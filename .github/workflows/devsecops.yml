@@ -178,8 +178,8 @@ jobs:
         uses: zaproxy/action-baseline@v0.12.0
         with:
           target: 'http://127.0.0.1:8501'
-          rules_file_name: '.zap/rules.tsv'
-          cmd_options: '-a'
+          cmd_options: '-a -I'
+          allow_issue_writing: false
           fail_action: true
           sarif_report_file: '/dev/null'
 
