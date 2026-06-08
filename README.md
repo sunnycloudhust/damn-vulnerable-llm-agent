@@ -1,5 +1,7 @@
 # Damn Vulnerable LLM Agent - DevSecOps Fix Branch
 
+[![DevSecOps Pipeline](https://github.com/sunnycloudhust/damn-vulnerable-llm-agent/actions/workflows/devsecops.yml/badge.svg?branch=fix)](https://github.com/sunnycloudhust/damn-vulnerable-llm-agent/actions/workflows/devsecops.yml?query=branch%3Afix)
+
 This repository contains a deliberately vulnerable LLM agent lab and a fixed
 branch that demonstrates how to remediate dependency and CI/CD security issues.
 
