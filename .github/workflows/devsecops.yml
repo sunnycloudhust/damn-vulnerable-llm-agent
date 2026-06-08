@@ -1,7 +1,7 @@
 name: DevSecOps Pipeline
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "main", "master", "fix" ]
   pull_request:
     branches: [ "main", "master" ]
   workflow_dispatch:
@@ -112,12 +112,18 @@ jobs:
           python -m pip check
           python -m pip show aiohttp litellm
 
+      - name: Setup Snyk CLI
+        uses: snyk/actions/setup@8e119fbb6c251787721d34ba683ed48eba792766
+
       - name: Run Snyk Security Scan
-        uses: snyk/actions/python@8e119fbb6c251787721d34ba683ed48eba792766
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=high --file=requirements.txt --package-manager=pip --command=python --sarif-file-output=/dev/null
+        run: >
+          snyk test
+          --severity-threshold=high
+          --file=requirements.txt
+          --package-manager=pip
+          --command=python
 
   # ============================================================
   # STAGE 4: DAST - Dynamic Application Security Testing
