@@ -71,7 +71,14 @@ jobs:
           cache: 'pip'
 
       - name: Install Dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          pip install coverage
+
+      - name: Run Tests with Coverage
+        run: |
+          coverage run --source=. -m unittest discover -s tests -v
+          coverage xml
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@016cabf33a6b7edf0733e179a03ad408ad4e88ba
@@ -86,6 +93,7 @@ jobs:
             -Dsonar.inclusions=**/*.py
             -Dsonar.exclusions=**/*.md,**/tests/**,**/__pycache__/**,.github/**
             -Dsonar.python.version=3.11
+            -Dsonar.python.coverage.reportPaths=coverage.xml
             -Dsonar.qualitygate.wait=true
             -Dsonar.sarif.enabled=false
 
