@@ -1,4 +1,5 @@
 import json
+import importlib
 import tempfile
 import unittest
 from pathlib import Path
@@ -56,6 +57,15 @@ class ToolAuthorizationTest(unittest.TestCase):
         self.assertEqual(user[0]["userId"], 1)
         self.assertTrue(transactions)
         self.assertEqual({row["userId"] for row in transactions}, {1})
+
+    def test_app_initializes_tools_for_authenticated_user(self):
+        app = importlib.import_module("main")
+
+        self.assertEqual(app.authenticated_user_id, 1)
+        self.assertEqual(
+            [tool.name for tool in app.tools],
+            ["GetCurrentUser", "GetMyTransactions"],
+        )
 
 
 if __name__ == "__main__":
