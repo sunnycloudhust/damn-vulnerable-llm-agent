@@ -4,3 +4,5 @@ rate_limit.db
 *.pyc
 transactions.db
 __pycache__
+.coverage
+coverage.xml

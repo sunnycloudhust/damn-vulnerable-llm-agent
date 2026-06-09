@@ -10,15 +10,16 @@ from langchain.memory.chat_message_histories import StreamlitChatMessageHistory
 from langchain.agents import initialize_agent
 from langchain.callbacks import get_openai_callback
 
-from tools import get_current_user_tool, get_recent_transactions_tool
+from tools import create_user_tools
 from utils import display_instructions, display_logo, fetch_model_config
 
 load_dotenv()
 
-# Initialise tools
-tools = [get_current_user_tool, get_recent_transactions_tool]
+# In production, obtain this value from a trusted login/session backend.
+authenticated_user_id = 1
+tools = create_user_tools(authenticated_user_id)
 
-system_msg = """Assistant helps the current user retrieve the list of their recent bank transactions ans shows them as a table. Assistant will ONLY operate on the userId returned by the GetCurrentUser() tool, and REFUSE to operate on any other userId provided by the user."""
+system_msg = """Assistant helps the authenticated user retrieve their recent bank transactions and shows them as a table. Never claim to access another user's data. Authorization is enforced by the tools."""
 
 welcome_message = """Hi! I'm an helpful assistant and I can help fetch information about your recent transactions.\n\nTry asking me: "What are my recent transactions?"
 """
@@ -86,6 +87,3 @@ if prompt := st.chat_input(placeholder="Show my recent transactions"):
 
 display_instructions()
 display_logo()
-
-
-        
