@@ -1,44 +1,40 @@
-###############################
-##  TOOLS
 from langchain.agents import Tool
-from langchain.tools import BaseTool
-from langchain.tools import StructuredTool
-import streamlit as st
-from datetime import date
 from dotenv import load_dotenv
-import json
-import re
-import os
+
 from transaction_db import TransactionDb
 
 load_dotenv()
 
-def get_current_user(input : str):
-    db = TransactionDb()
-    user = db.get_user(1)
-    db.close()
-    return user
 
-get_current_user_tool = Tool(
-    name='GetCurrentUser',
-    func= get_current_user,
-    description="Returns the current user for querying transactions."
-)
+def create_user_tools(authenticated_user_id: int):
+    """Create tools scoped to the authenticated user."""
 
-def get_transactions(userId : str):
-    """Returns the transactions associated to the userId provided by running this query: SELECT * FROM Transactions WHERE userId = ?."""
-    try:
+    def get_current_user(_input: str = ""):
         db = TransactionDb()
-        transactions = db.get_user_transactions(userId)
-        db.close()
-        return transactions
-        
-    except Exception as e:
-        return f"Error: {e}'"
-            
+        try:
+            return db.get_user(authenticated_user_id)
+        finally:
+            db.close()
 
-get_recent_transactions_tool = Tool(
-    name='GetUserTransactions',
-    func= get_transactions,
-    description="Returns the transactions associated to the userId provided by running this query: SELECT * FROM Transactions WHERE userId = provided_userId."
-)
+    def get_my_transactions(_input: str = ""):
+        # Authorization is enforced here, outside the LLM's control.
+        db = TransactionDb()
+        try:
+            return db.get_user_transactions(authenticated_user_id)
+        finally:
+            db.close()
+
+    current_user_tool = Tool(
+        name="GetCurrentUser",
+        func=get_current_user,
+        description="Returns the authenticated user. This tool accepts no user ID.",
+    )
+    transactions_tool = Tool(
+        name="GetMyTransactions",
+        func=get_my_transactions,
+        description=(
+            "Returns transactions for the authenticated user. "
+            "Any user ID in the tool input is ignored."
+        ),
+    )
+    return [current_user_tool, transactions_tool]
