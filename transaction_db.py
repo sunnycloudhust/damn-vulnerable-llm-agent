@@ -59,6 +59,7 @@ class TransactionDb:
 
     def get_user_transactions(self, userId):
         cursor = self.conn.cursor()
+        # SQL tampering mitigation: bind data instead of interpolating it.
         cursor.execute("SELECT * FROM Transactions WHERE userId = ?", (userId,))
         rows = cursor.fetchall()
 
@@ -73,6 +74,7 @@ class TransactionDb:
 
     def get_user(self, user_id):
         cursor = self.conn.cursor()
+        # SQL tampering mitigation: bind data instead of interpolating it.
         cursor.execute("SELECT userId,username FROM Users WHERE userId = ?", (user_id,))
         rows = cursor.fetchall()
 

@@ -26,6 +26,14 @@ class FakeTransactionDb:
         self.closed = True
 
 
+class FakeAuditLogger:
+    def __init__(self):
+        self.events = []
+
+    def log(self, event, **details):
+        self.events.append({"event": event, **details})
+
+
 class ToolAuthorizationTest(unittest.TestCase):
     def setUp(self):
         FakeTransactionDb.instances.clear()
@@ -44,6 +52,33 @@ class ToolAuthorizationTest(unittest.TestCase):
         self.assertEqual(user[0]["userId"], 1)
         self.assertEqual(transactions[0]["userId"], 1)
         self.assertTrue(all(db.closed for db in FakeTransactionDb.instances))
+
+    @patch("tools.TransactionDb", FakeTransactionDb)
+    def test_tool_calls_are_audited_with_request_identity(self):
+        audit_logger = FakeAuditLogger()
+        tools = {
+            tool.name: tool
+            for tool in create_user_tools(
+                1,
+                audit_logger=audit_logger,
+                request_id="request-123",
+            )
+        }
+
+        tools["GetMyTransactions"].run("userId=2")
+
+        self.assertEqual(
+            audit_logger.events,
+            [
+                {
+                    "event": "tool_call",
+                    "request_id": "request-123",
+                    "authenticated_user_id": 1,
+                    "tool": "GetMyTransactions",
+                    "authorization": "allowed",
+                }
+            ],
+        )
 
     def test_database_queries_use_the_requested_authenticated_user(self):
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -1,6 +1,7 @@
 import langchain
 import streamlit as st
 import os
+import uuid
 from dotenv import load_dotenv
 from langchain.agents import ConversationalChatAgent, AgentExecutor
 from langchain.callbacks import StreamlitCallbackHandler
@@ -10,14 +11,17 @@ from langchain.memory.chat_message_histories import StreamlitChatMessageHistory
 from langchain.agents import initialize_agent
 from langchain.callbacks import get_openai_callback
 
+from audit_log import AuditLogger
 from tools import create_user_tools
 from utils import display_instructions, display_logo, fetch_model_config
 
 load_dotenv()
 
-# In production, obtain this value from a trusted login/session backend.
 authenticated_user_id = 1
-tools = create_user_tools(authenticated_user_id)
+# Repudiation mitigation: persist security events outside the temporary
+# Streamlit session so requests can be attributed and investigated later.
+audit_logger = AuditLogger()
+tools = create_user_tools(authenticated_user_id, audit_logger=audit_logger)
 
 system_msg = """Assistant helps the authenticated user retrieve their recent bank transactions and shows them as a table. Never claim to access another user's data. Authorization is enforced by the tools."""
 
@@ -36,6 +40,7 @@ hide_st_style = """
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
+#memory of llm initialization
 msgs = StreamlitChatMessageHistory()
 memory = ConversationBufferMemory(
     chat_memory=msgs, return_messages=True, memory_key="chat_history", output_key="output"
@@ -60,18 +65,31 @@ for idx, msg in enumerate(msgs.messages):
 
 if prompt := st.chat_input(placeholder="Show my recent transactions"):
     st.chat_message("user").write(prompt)
-    
+    request_id = str(uuid.uuid4())
+    # Repudiation mitigation: bind the request to a user, timestamp and unique request ID. Store a prompt hash instead of sensitive raw prompt content.
+    audit_logger.log(
+        "request_received",
+        request_id=request_id,
+        authenticated_user_id=authenticated_user_id,
+        prompt_sha256=audit_logger.fingerprint(prompt),
+        prompt_length=len(prompt),
+    )
+    request_tools = create_user_tools(
+        authenticated_user_id,
+        audit_logger=audit_logger,
+        request_id=request_id,
+    )
+
     llm = ChatLiteLLM(
         model=fetch_model_config(),
         temperature=0, streaming=True
     )
-    tools = tools
 
-    chat_agent = ConversationalChatAgent.from_llm_and_tools(llm=llm, tools=tools, verbose=True, system_message=system_msg)
+    chat_agent = ConversationalChatAgent.from_llm_and_tools(llm=llm, tools=request_tools, verbose=True, system_message=system_msg)
 
     executor = AgentExecutor.from_agent_and_tools(
         agent=chat_agent,
-        tools=tools,
+        tools=request_tools,
         memory=memory,
         return_intermediate_steps=True,
         handle_parsing_errors=True,
@@ -80,9 +98,26 @@ if prompt := st.chat_input(placeholder="Show my recent transactions"):
     )
     with st.chat_message("assistant"):
         st_cb = StreamlitCallbackHandler(st.container(), expand_new_thoughts=False)
-        response = executor(prompt, callbacks=[st_cb])
-        st.write(response["output"])
-        st.session_state.steps[str(len(msgs.messages) - 1)] = response["intermediate_steps"]
+        try:
+            response = executor(prompt, callbacks=[st_cb])
+            # Repudiation mitigation: record whether processing completed and
+            # how many tool calls were made under the same request ID.
+            audit_logger.log(
+                "request_completed",
+                request_id=request_id,
+                authenticated_user_id=authenticated_user_id,
+                tool_call_count=len(response["intermediate_steps"]),
+            )
+            st.write(response["output"])
+            st.session_state.steps[str(len(msgs.messages) - 1)] = response["intermediate_steps"]
+        except Exception as exc:
+            audit_logger.log(
+                "request_failed",
+                request_id=request_id,
+                authenticated_user_id=authenticated_user_id,
+                error_type=type(exc).__name__,
+            )
+            raise
 
 
 display_instructions()
