@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from typing import Optional
 
 from audit_log import AuditLogger
+from data_privacy import redact_transactions_for_llm
 from transaction_db import TransactionDb
 
 load_dotenv()
@@ -42,7 +43,10 @@ def create_user_tools(
         audit_tool_call("GetMyTransactions")
         db = TransactionDb()
         try:
-            return db.get_user_transactions(authenticated_user_id)
+            raw_transactions = db.get_user_transactions(authenticated_user_id)
+            # Information Disclosure mitigation: exact financial details stay
+            # in the backend and are removed before the Observation reaches LLM.
+            return redact_transactions_for_llm(raw_transactions)
         finally:
             db.close()
 
@@ -55,8 +59,9 @@ def create_user_tools(
         name="GetMyTransactions",
         func=get_my_transactions,
         description=(
-            "Returns transactions for the authenticated user. "
-            "Any user ID in the tool input is ignored."
+            "Returns privacy-safe transaction summaries for the authenticated "
+            "user. Exact recipient, amount, reference, and user ID values are "
+            "redacted. Any user ID in the tool input is ignored."
         ),
     )
     return [current_user_tool, transactions_tool]
