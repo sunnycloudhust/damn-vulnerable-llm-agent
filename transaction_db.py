@@ -1,9 +1,11 @@
 import sqlite3
 import time
 import json 
+import os
 
 class TransactionDb:
-    def __init__(self, db_name="transactions.db"):
+    def __init__(self, db_name=None):
+        db_name = db_name or os.getenv("TRANSACTION_DB_PATH", "transactions.db")
         self.conn = sqlite3.connect(db_name)
         self.create_tables()
         self.seed_data()

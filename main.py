@@ -21,8 +21,9 @@ load_dotenv()
 authenticated_user_id = 1
 # Repudiation mitigation: persist security events outside the temporary
 # Streamlit session so requests can be attributed and investigated later.
-audit_logger = AuditLogger()
+audit_logger = AuditLogger(os.getenv("AUDIT_LOG_PATH", "logs/audit.jsonl"))
 rate_limiter = SqliteRateLimiter(
+    db_path=os.getenv("RATE_LIMIT_DB_PATH", "rate_limit.db"),
     max_requests=int(os.getenv("RATE_LIMIT_REQUESTS", "10")),
     window_seconds=int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60")),
 )

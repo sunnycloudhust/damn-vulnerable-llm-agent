@@ -10,24 +10,28 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt \
+    && useradd --create-home --shell /usr/sbin/nologin appuser \
+    && install -d -o appuser -g appuser /home/appuser/.streamlit \
+    && install -d -o appuser -g appuser /app/runtime
 
-RUN useradd --create-home --shell /usr/sbin/nologin appuser \
-    && install -d -o appuser -g appuser /home/appuser/.streamlit
-
-COPY --chown=appuser:appuser \
+COPY --chmod=0444 \
     main.py \
     tools.py \
     utils.py \
     transaction_db.py \
+    audit_log.py \
+    data_privacy.py \
+    rate_limiter.py \
     llm-config.yaml \
     labs-logo.png \
     /app/
-COPY --chown=appuser:appuser config.toml /home/appuser/.streamlit/config.toml
-
-RUN chown appuser:appuser /app
+COPY --chmod=0444 config.toml /home/appuser/.streamlit/config.toml
 
 ENV HOME=/home/appuser
+ENV TRANSACTION_DB_PATH=/app/runtime/transactions.db
+ENV RATE_LIMIT_DB_PATH=/app/runtime/rate_limit.db
+ENV AUDIT_LOG_PATH=/app/runtime/logs/audit.jsonl
 USER appuser
 
 EXPOSE 8501
