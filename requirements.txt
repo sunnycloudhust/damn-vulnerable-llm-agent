@@ -3,6 +3,7 @@ langchain~=0.3.25
 openai==2.24.0
 langchain-litellm>=0.2.1
 litellm==1.84.0
-aiohttp==3.14.0
+aiohttp==3.14.1
+cryptography==48.0.1
 langchain-community
 python-dotenv==1.0.1
