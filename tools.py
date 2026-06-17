@@ -12,14 +12,11 @@ load_dotenv()
 def create_user_tools(
     authenticated_user_id: int,
     audit_logger: Optional[AuditLogger] = None,
-    request_id: Optional[str] = None,
-):
-    """Create tools whose authorization scope cannot be changed by the LLM."""
+    request_id: Optional[str] = None):
 
+    # Logging for mitigating repudiation
     def audit_tool_call(tool_name: str):
         if audit_logger is not None:
-            # Repudiation mitigation: record which authorized tool was executed
-            # for this user and request independently of Streamlit chat memory.
             audit_logger.log(
                 "tool_call",
                 request_id=request_id,
@@ -27,7 +24,8 @@ def create_user_tools(
                 tool=tool_name,
                 authorization="allowed",
             )
-
+            
+    # GetCurrentUser tool
     def get_current_user(_input: str = ""):
         # Spoofing mitigation: ignore any identity claimed in the prompt.
         audit_tool_call("GetCurrentUser")
@@ -37,6 +35,7 @@ def create_user_tools(
         finally:
             db.close()
 
+    # GetMyTransactions tool
     def get_my_transactions(_input: str = ""):
         # Elevation of Privilege mitigation: authorization is enforced at the
         # tool boundary; injected user IDs and fake observations are ignored.
@@ -53,15 +52,13 @@ def create_user_tools(
     current_user_tool = Tool(
         name="GetCurrentUser",
         func=get_current_user,
-        description="Returns the authenticated user. This tool accepts no user ID.",
+        description="Returns the authenticated user only",
     )
     transactions_tool = Tool(
         name="GetMyTransactions",
         func=get_my_transactions,
         description=(
-            "Returns privacy-safe transaction summaries for the authenticated "
-            "user. Exact recipient, amount, reference, and user ID values are "
-            "redacted. Any user ID in the tool input is ignored."
+            "Returns redacted transaction summaries for the authenticated user"
         ),
     )
     return [current_user_tool, transactions_tool]
