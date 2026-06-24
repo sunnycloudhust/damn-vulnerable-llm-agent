@@ -20,13 +20,6 @@ This repository uses two main branches for the exercise:
 - `fix`: remediation branch. It upgrades vulnerable libraries and fixes the
   DevSecOps workflow so the pull request can pass.
 
-Current important dependency changes on `fix`:
-
-```text
-litellm: 1.83.7 -> 1.84.0
-aiohttp: 3.13.5 -> 3.14.0
-```
-
 ## Application Setup
 
 Create and activate a Python virtual environment:
