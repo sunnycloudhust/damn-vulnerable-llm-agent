@@ -132,6 +132,7 @@ jobs:
           --severity-threshold=high
           --file=requirements.txt
           --package-manager=pip
+          --policy-path=.snyk
           --command=python
 
   # ============================================================
