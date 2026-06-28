@@ -104,8 +104,7 @@ if prompt := st.chat_input(placeholder="Show my recent transactions"):
 
     llm = ChatLiteLLM(
         model=fetch_model_config(),
-        temperature=0,
-        streaming=True,
+        temperature=0, streaming=True,
         # DoS mitigation: bound one provider call as well as generated output.
         request_timeout=int(os.getenv("LLM_REQUEST_TIMEOUT_SECONDS", "80")),
         max_tokens=int(os.getenv("LLM_MAX_OUTPUT_TOKENS", "5000")),
@@ -151,3 +150,6 @@ if prompt := st.chat_input(placeholder="Show my recent transactions"):
 
 display_instructions()
 display_logo()
+
+
+        
