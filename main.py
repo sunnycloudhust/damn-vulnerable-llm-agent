@@ -17,7 +17,7 @@ from tools import create_user_tools
 from utils import display_instructions, display_logo, fetch_model_config
 
 load_dotenv()
-
+# We only consider authenticated_user id = 1
 authenticated_user_id = 1
 # repudiation mitigation: add log and rate limiter
 audit_logger = AuditLogger(os.getenv("AUDIT_LOG_PATH", "logs/audit.jsonl"))
@@ -107,8 +107,8 @@ if prompt := st.chat_input(placeholder="Show my recent transactions"):
         temperature=0,
         streaming=True,
         # DoS mitigation: bound one provider call as well as generated output.
-        request_timeout=int(os.getenv("LLM_REQUEST_TIMEOUT_SECONDS", "30")),
-        max_tokens=int(os.getenv("LLM_MAX_OUTPUT_TOKENS", "500")),
+        request_timeout=int(os.getenv("LLM_REQUEST_TIMEOUT_SECONDS", "80")),
+        max_tokens=int(os.getenv("LLM_MAX_OUTPUT_TOKENS", "5000")),
         max_retries=1,
     )
 
@@ -122,8 +122,8 @@ if prompt := st.chat_input(placeholder="Show my recent transactions"):
         handle_parsing_errors=True,
         verbose=True,
         # DoS mitigation: cap both reasoning loops and wall-clock execution.
-        max_iterations=6,
-        max_execution_time=30,
+        max_iterations=int(os.getenv("AGENT_MAX_ITERATIONS", "12")),
+        max_execution_time=int(os.getenv("AGENT_MAX_EXECUTION_SECONDS", "120")),
     )
     with st.chat_message("assistant"):
         st_cb = StreamlitCallbackHandler(st.container(), expand_new_thoughts=False)
