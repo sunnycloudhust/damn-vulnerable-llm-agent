@@ -15,7 +15,7 @@ def redact_transactions_for_llm(raw_transactions: str) -> str:
     return json.dumps(
         {
             "privacy_notice": (
-                "Sensitive transaction fields were redacted before LLM processing."
+                "Sensitive transaction fields were redacted before reaching LLM"
             ),
             "transactions": redacted_transactions,
         },
