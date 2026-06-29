@@ -1,6 +1,7 @@
 import langchain
 import streamlit as st
 import os
+import uuid
 from dotenv import load_dotenv
 from langchain.agents import ConversationalChatAgent, AgentExecutor
 from langchain.callbacks import StreamlitCallbackHandler
@@ -10,15 +11,24 @@ from langchain.memory.chat_message_histories import StreamlitChatMessageHistory
 from langchain.agents import initialize_agent
 from langchain.callbacks import get_openai_callback
 
-from tools import get_current_user_tool, get_recent_transactions_tool
+from audit_log import AuditLogger
+from rate_limiter import SqliteRateLimiter
+from tools import create_user_tools
 from utils import display_instructions, display_logo, fetch_model_config
 
 load_dotenv()
+# We only consider authenticated_user id = 1
+authenticated_user_id = 1
+# repudiation mitigation: add log and rate limiter
+audit_logger = AuditLogger(os.getenv("AUDIT_LOG_PATH", "logs/audit.jsonl"))
+rate_limiter = SqliteRateLimiter(
+    db_path=os.getenv("RATE_LIMIT_DB_PATH", "rate_limit.db"),
+    max_requests=int(os.getenv("RATE_LIMIT_REQUESTS", "10")),
+    window_seconds=int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60")),
+)
+tools = create_user_tools(authenticated_user_id, audit_logger=audit_logger)
 
-# Initialise tools
-tools = [get_current_user_tool, get_recent_transactions_tool]
-
-system_msg = """Assistant helps the current user retrieve the list of their recent bank transactions ans shows them as a table. Assistant will ONLY operate on the userId returned by the GetCurrentUser() tool, and REFUSE to operate on any other userId provided by the user."""
+system_msg = """Assistant helps the authenticated user retrieve privacy-safe summaries of their recent bank transactions. Never claim to access another user's data or reveal fields marked as redacted. Authorization and data minimization are enforced by the tools."""
 
 welcome_message = """Hi! I'm an helpful assistant and I can help fetch information about your recent transactions.\n\nTry asking me: "What are my recent transactions?"
 """
@@ -35,6 +45,7 @@ hide_st_style = """
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
+# Memory of llm initialization
 msgs = StreamlitChatMessageHistory()
 memory = ConversationBufferMemory(
     chat_memory=msgs, return_messages=True, memory_key="chat_history", output_key="output"
@@ -57,31 +68,84 @@ for idx, msg in enumerate(msgs.messages):
                 st.write(step[1])
         st.write(msg.content)
 
+#### STRART HERE ###
 if prompt := st.chat_input(placeholder="Show my recent transactions"):
     st.chat_message("user").write(prompt)
-    
+    request_id = str(uuid.uuid4())
+    # DoS mitigation: reject repeated requests before creating the LLM client or making any billable provider API call.
+    rate_limit = rate_limiter.check(str(authenticated_user_id))
+    if not rate_limit.allowed:
+        audit_logger.log(
+            "request_rejected",
+            request_id=request_id,
+            authenticated_user_id=authenticated_user_id,
+            reason="rate_limit_exceeded",
+        )
+        st.error(
+            "Too many requests. Try again in "
+            f"{rate_limit.retry_after_seconds} seconds."
+        )
+        st.stop()
+
+    # Repudiation mitigation: bind the request to a user, timestamp and unique request ID
+    # Save the hash of the prompt instead of sensitive data
+    audit_logger.log(
+        "request_received",
+        request_id=request_id,
+        authenticated_user_id=authenticated_user_id,
+        prompt_sha256=audit_logger.fingerprint(prompt),
+        prompt_length=len(prompt),
+    )
+    request_tools = create_user_tools(
+        authenticated_user_id,
+        audit_logger=audit_logger,
+        request_id=request_id,
+    )
+
     llm = ChatLiteLLM(
         model=fetch_model_config(),
-        temperature=0, streaming=True
+        temperature=0, streaming=True,
+        # DoS mitigation: bound one provider call as well as generated output.
+        request_timeout=int(os.getenv("LLM_REQUEST_TIMEOUT_SECONDS", "80")),
+        max_tokens=int(os.getenv("LLM_MAX_OUTPUT_TOKENS", "5000")),
+        max_retries=1,
     )
-    tools = tools
 
-    chat_agent = ConversationalChatAgent.from_llm_and_tools(llm=llm, tools=tools, verbose=True, system_message=system_msg)
+    chat_agent = ConversationalChatAgent.from_llm_and_tools(llm=llm, tools=request_tools, verbose=True, system_message=system_msg)
 
     executor = AgentExecutor.from_agent_and_tools(
         agent=chat_agent,
-        tools=tools,
+        tools=request_tools,
         memory=memory,
         return_intermediate_steps=True,
         handle_parsing_errors=True,
         verbose=True,
-        max_iterations=6
+        # DoS mitigation: cap both reasoning loops and wall-clock execution.
+        max_iterations=int(os.getenv("AGENT_MAX_ITERATIONS", "12")),
+        max_execution_time=int(os.getenv("AGENT_MAX_EXECUTION_SECONDS", "120")),
     )
     with st.chat_message("assistant"):
         st_cb = StreamlitCallbackHandler(st.container(), expand_new_thoughts=False)
-        response = executor(prompt, callbacks=[st_cb])
-        st.write(response["output"])
-        st.session_state.steps[str(len(msgs.messages) - 1)] = response["intermediate_steps"]
+        try:
+            response = executor(prompt, callbacks=[st_cb])
+            # Repudiation mitigation: record whether processing completed and
+            # how many tool calls were made under the same request ID.
+            audit_logger.log(
+                "request_completed",
+                request_id=request_id,
+                authenticated_user_id=authenticated_user_id,
+                tool_call_count=len(response["intermediate_steps"]),
+            )
+            st.write(response["output"])
+            st.session_state.steps[str(len(msgs.messages) - 1)] = response["intermediate_steps"]
+        except Exception as exc:
+            audit_logger.log(
+                "request_failed",
+                request_id=request_id,
+                authenticated_user_id=authenticated_user_id,
+                error_type=type(exc).__name__,
+            )
+            raise
 
 
 display_instructions()

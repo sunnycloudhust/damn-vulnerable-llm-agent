@@ -3,4 +3,7 @@ env/
 rate_limit.db
 *.pyc
 transactions.db
+logs/
 __pycache__
+.coverage
+coverage.xml

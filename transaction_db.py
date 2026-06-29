@@ -1,9 +1,11 @@
 import sqlite3
 import time
 import json 
+import os
 
 class TransactionDb:
-    def __init__(self, db_name="transactions.db"):
+    def __init__(self, db_name=None):
+        db_name = db_name or os.getenv("TRANSACTION_DB_PATH", "transactions.db")
         self.conn = sqlite3.connect(db_name)
         self.create_tables()
         self.seed_data()
@@ -59,7 +61,8 @@ class TransactionDb:
 
     def get_user_transactions(self, userId):
         cursor = self.conn.cursor()
-        cursor.execute(f"SELECT * FROM Transactions WHERE userId = '{str(userId)}'")
+        # SQL tampering mitigation: bind data instead of interpolating it.
+        cursor.execute("SELECT * FROM Transactions WHERE userId = ?", (userId,))
         rows = cursor.fetchall()
 
         # Get column names
@@ -73,9 +76,8 @@ class TransactionDb:
 
     def get_user(self, user_id):
         cursor = self.conn.cursor()
-        cursor.execute(
-            f"SELECT userId,username FROM Users WHERE userId = {str(user_id)}"
-        )
+        # SQL tampering mitigation: bind data instead of interpolating it.
+        cursor.execute("SELECT userId,username FROM Users WHERE userId = ?", (user_id,))
         rows = cursor.fetchall()
 
         # Get column names

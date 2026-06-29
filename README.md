@@ -1,87 +1,93 @@
-# Damn Vulnerable LLM Agent
+# Damn Vulnerable LLM Agent - DevSecOps Fix Branch
 
-## Introduction
-Welcome to the *Damn Vulnerable LLM Agent*! This project is a sample chatbot powered by a Large Language Model (LLM) ReAct agent, implemented with Langchain. It's designed to be an educational tool for security researchers, developers, and enthusiasts to understand and experiment with prompt injection attacks in ReAct agents. 
+[![DevSecOps Pipeline](https://github.com/sunnycloudhust/damn-vulnerable-llm-agent/actions/workflows/devsecops.yml/badge.svg?branch=fix)](https://github.com/sunnycloudhust/damn-vulnerable-llm-agent/actions/workflows/devsecops.yml?query=branch%3Afix)
+[![Snyk Security](https://snyk.io/test/github/sunnycloudhust/damn-vulnerable-llm-agent/fix/badge.svg?targetFile=requirements.txt)](https://snyk.io/test/github/sunnycloudhust/damn-vulnerable-llm-agent/fix?targetFile=requirements.txt)
+![SonarQube Quality Gate](https://img.shields.io/badge/SonarQube-Quality%20Gate%20Passed-4E9BCD?logo=sonarqube&logoColor=white)
 
-The project specifically focuses on Thought/Action/Observation injection, as described in the WithSecure Labs [publication](https://labs.withsecure.com/publications/llm-agent-prompt-injection) and accompanying [video tutorial](https://www.youtube.com/watch?v=43qfHaKh0Xk).
+This repository contains a deliberately vulnerable LLM agent lab and a fixed
+branch that demonstrates how to remediate dependency and CI/CD security issues.
 
-This repository is an adaptation of a challenge created by WithSecure for the Capture The Flag (CTF) competition held at BSides London 2023.
+The application is a Streamlit chatbot built with LangChain and LiteLLM. It is
+intended for learning about prompt injection, insecure agent tooling, SCA, SAST,
+DAST, and security quality gates.
 
-![DVLM Demo](dvla-demo.gif)
+## Branch Model
 
+This repository uses two main branches for the exercise:
 
-## Features
-- Simulates a vulnerable chatbot environment.
-- Allows for prompt injection experimentation.
-- Provides a ground for learning prompt injection vectors.
+- `main`: vulnerable baseline. It intentionally keeps insecure dependency
+  versions so scanners can detect issues.
+- `fix`: remediation branch. It upgrades vulnerable libraries and fixes the
+  DevSecOps workflow so the pull request can pass.
 
-## Installation
+## Application Setup
 
-### Pipenv Installation
-
-To get started, you need to set up your Python environment by following these steps:
+Create and activate a Python virtual environment:
 
 ```sh
 python3 -m venv env
 source env/bin/activate
+python -m pip install --upgrade pip
 pip install -r requirements.txt
-pip install python-dotenv
 ```
 
-### Running the Application
+Create a `.env` file from one of the templates:
 
-Before running the application, you need to setup a .env file based on the provided env templates. The env templates have a model_name variable which can be chosen from the list of models mentioned in llm-config.yaml.
+```sh
+cp .env.openai.template .env
+```
 
-#### To run with OpenAI
-You need to drop a valid OpenAI API key in the .env file (that you can create by copying the .env.openai.template).
+Edit `.env` and set the required model provider variables. The active model is
+selected with `model_name`; available model names are defined in
+`llm-config.yaml`.
 
-#### To run with Models from HuggingFace
-You need to drop a valid HuggingFace Token in the .env file (that you can create by copying the .env.huggingface.template). Note: It is possible that you may not see reasonable results with the chosen models yet.
-
-#### To run using ollama locally
-- Create a .env by copying .env.ollama.template.
-- Change the default model to any ollama model you want to use by editing `llm-config.yaml`
-- Install [Ollama](https://github.com/ollama/ollama)
-- ollama pull mistral-nemo
-
-Note: Please note that small LLMs do not perform very well as ReACT agents. In our testing `mistral-nemo` appeared to be sufficiently reliable. It is possible that you may not see reasonable results with most small models.
-
-#### To run the application:
+Run the application:
 
 ```sh
 python -m streamlit run main.py
 ```
 
-### Docker Image
+The app starts on:
 
-To build and run the Docker image:
+```text
+http://localhost:8501
+```
+
+## Docker
+
+Build the image:
 
 ```sh
 docker build -t dvla .
-
-# Populate the env.list with necessary environment variables (just the OpenAI API key), then run:
-docker run --env-file env.list -p 8501:8501 dvla
-
 ```
 
-## Usage
+Run the image:
 
-To interact with the vulnerable chatbot and test prompt injection, start the server and begin by issuing commands and observing responses.
+```sh
+docker run --env-file .env -p 8501:8501 dvla
+```
 
+Security note for `fix`: the container no longer runs the application as root.
+The Dockerfile creates and uses a non-root `appuser`.
 
-## Contributing
+## DevSecOps Workflow
 
-Contributions are welcome! If you would like to help make DVLA better, please submit your pull requests, and don't hesitate to open issues if you encounter problems or have suggestions.
+The workflow is defined in:
 
-We're particularly interested in adapting DVLA to support LLMs other than GPT-4 and GPT-4 Turbo, so if you get this to work with an open-source LLM, please consider doing a pull request. 
+```text
+.github/workflows/devsecops.yml
+```
+
+It runs on:
+
+- `push` to `main` or `master`
+- `pull_request` targeting `main` or `master`
+- manual `workflow_dispatch`
+
+The `fix` branch is not listed under `push` to avoid duplicate runs when a pull
+request from `fix` to `main` is open. Updating the PR still triggers the
+workflow through the `pull_request` `synchronize` event.
 
 ## License
 
-This project is released open-source under the Apache 2.0 license. By contributing to the Damn Vulnerable LLM Agent, you agree to abide by its terms.
-
-## Contact
-
-For any additional questions or feedback, please [open an issue](https://github.com/WithSecureLabs/damn-vulnerable-llm-agent/issues) on the repository.
-
-Thank you for using *Damn Vulnerable LLM Agent*! Together, let's make cyberspace a safer place for everyone.
-```
+This project is released under the Apache 2.0 license.
